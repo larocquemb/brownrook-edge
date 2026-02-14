@@ -22,6 +22,17 @@
           { "Value": "idc.brownrook.com." }
         ]
       }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "vpn.idc.brownrook.com.",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [
+          { "Value": "idc.brownrook.com." }
+        ]
+      }
     }
   ]
 }
