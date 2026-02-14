@@ -1,0 +1,27 @@
+{
+  "Comment": "Add service CNAMEs under idc anchor",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "pve.idc.brownrook.com.",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [
+          { "Value": "idc.brownrook.com." }
+        ]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "web.idc.brownrook.com.",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [
+          { "Value": "idc.brownrook.com." }
+        ]
+      }
+    }
+  ]
+}
