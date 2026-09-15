@@ -1,0 +1,104 @@
+name: Deploy Route 53 service aliases
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/route53-service-cnames.yml
+      - infra/route53/idc-service-cnames.json
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/route53-service-cnames.yml
+      - infra/route53/idc-service-cnames.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: route53-service-cnames
+  cancel-in-progress: false
+
+env:
+  AWS_DEFAULT_REGION: us-east-1
+  AWS_REGION: us-east-1
+  HOSTED_ZONE_ID: Z04891073LFEUB14MX3A6
+  CHANGE_BATCH_FILE: infra/route53/idc-service-cnames.json
+
+jobs:
+  validate:
+    name: Validate change batch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Validate JSON and DNS scope
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          jq -e '
+            (.Comment | type == "string") and
+            (.Changes | type == "array" and length > 0) and
+            all(
+              .Changes[];
+              (.Action == "UPSERT" or .Action == "DELETE") and
+              (.ResourceRecordSet.Type == "CNAME") and
+              (.ResourceRecordSet.Name |
+                test("^[a-z0-9-]+\\.idc\\.brownrook\\.com\\.$")) and
+              (.ResourceRecordSet.TTL == 300) and
+              (.ResourceRecordSet.ResourceRecords | length == 1) and
+              (.ResourceRecordSet.ResourceRecords[0].Value ==
+                "idc.brownrook.com.")
+            )
+          ' "$CHANGE_BATCH_FILE" >/dev/null
+
+          record_count="$(jq -r '.Changes | length' "$CHANGE_BATCH_FILE")"
+          unique_record_count="$(
+            jq -r '[.Changes[].ResourceRecordSet.Name] | unique | length' \
+              "$CHANGE_BATCH_FILE"
+          )"
+          test "$record_count" -eq "$unique_record_count"
+
+  deploy:
+    name: Apply change batch
+    needs: validate
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ROUTE53_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_ROUTE53_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Verify AWS credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AWS_ACCESS_KEY_ID"
+          test -n "$AWS_SECRET_ACCESS_KEY"
+          aws sts get-caller-identity >/dev/null
+
+      - name: Apply Route 53 change batch
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          change_id="$(
+            aws route53 change-resource-record-sets \
+              --hosted-zone-id "$HOSTED_ZONE_ID" \
+              --change-batch "file://$CHANGE_BATCH_FILE" \
+              --query 'ChangeInfo.Id' \
+              --output text
+          )"
+
+          echo "Submitted Route 53 change: $change_id"
+          aws route53 wait resource-record-sets-changed --id "$change_id"
+          aws route53 get-change \
+            --id "$change_id" \
+            --query 'ChangeInfo.{Id:Id,Status:Status,SubmittedAt:SubmittedAt}'
