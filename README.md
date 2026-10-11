@@ -36,3 +36,12 @@ and resolves through `idc.brownrook.com` to the current dynamic site address.
 The workflow deliberately does not manage the dynamic `idc.brownrook.com` A
 record; Proxmox continues updating that record when the site's public IP
 changes.
+
+## Arsene Jupyter
+
+`jupyter.idc.brownrook.com` is a CNAME to the dynamic site anchor. The existing
+Route 53 workflow applies this alias on merge to main. Host Jupyter, Nginx,
+TLS routing and the internal Unbound override are managed by the
+`brownrook-infra` Ansible Jupyter playbook. The internal override resolves
+the same hostname to proxy `192.168.2.210`; external DNS uses the public site
+address. No credentials or notebook data are stored in this repository.
