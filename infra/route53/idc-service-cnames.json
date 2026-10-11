@@ -55,6 +55,17 @@
           { "Value": "idc.brownrook.com." }
         ]
       }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "jupyter.idc.brownrook.com.",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [
+          { "Value": "idc.brownrook.com." }
+        ]
+      }
     }
   ]
 }
